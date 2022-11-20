@@ -29,7 +29,6 @@ kind: Service
 metadata:
   name: django-app-service
 spec:
-  type: NodePort
   selector:
     app.kubernetes.io/name: django-app
   ports:
