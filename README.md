@@ -35,7 +35,7 @@ minikube start
 minikube image build -t django_app backend_main_django/
 ```
 
-Задайте переменные окружения в файле кофигурации `kubernetes/django-app-configmap.yml`:
+Задайте переменные окружения в файле конфигурации `kubernetes/django-app-configmap.yml`:
 
 ```yml
 apiVersion: v1
@@ -93,7 +93,7 @@ minikube addons enable ingress
 Запустите манифест:
 
 ```bash
-kubectl apply -f kubernetes/ingress.yml
+kubectl apply -f kubernetes/django-app-ingress.yml
 ```
 
 ### Настройка удаления сессий
