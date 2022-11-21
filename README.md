@@ -21,6 +21,112 @@ $ docker-compose run web ./manage.py createsuperuser
 
 Для тонкой настройки Docker Compose используйте переменные окружения. Их названия отличаются от тех, что задаёт docker-образа, сделано это чтобы избежать конфликта имён. Внутри docker-compose.yaml настраиваются сразу несколько образов, у каждого свои переменные окружения, и поэтому их названия могут случайно пересечься. Чтобы не было конфликтов к названиям переменных окружения добавлены префиксы по названию сервиса. Список доступных переменных можно найти внутри файла [`docker-compose.yml`](./docker-compose.yml).
 
+## Как запустить в кластере Kubernetes с помощью Minikube
+
+Установите [kubectl](https://kubernetes.io/ru/docs/tasks/tools/install-kubectl/). Установите и запустите [minikube](https://minikube.sigs.k8s.io/docs/):
+
+```bash
+minikube start
+```
+
+Создайте образ Django-приложения в кластере:
+
+```bash
+minikube image build -t django_app backend_main_django/
+```
+
+Задайте переменные окружения в файле кофигурации `kubernetes/django-app-configmap.yml`:
+
+```yml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: django-app-configmap
+data:
+  ALLOWED_HOSTS: '*'
+  DATABASE_URL: postgres://test_k8s:OwOtBep9Frut@10.0.2.2:6666/test_k8s
+  DEBUG: 'False'
+  SECRET_KEY: your-secret-key
+```
+
+Создайте `ConfigMap`:
+
+```bash
+kubectl apply -f kubernetes/django-app-configmap.yml
+```
+
+Запустите дейплой:
+
+```bash
+kubectl apply -f kubernetes/django-app-deployment.yml
+```
+
+### Изменение ConfigMap
+
+При внесении изменений в `kubernetes/django-app-configmap.yml` необходимо пересоздать ConfigMap и перезапустить деплой:
+
+```bash
+kubectl apply -f kubernetes/django-app-configmap.yml
+kubectl rollout restart deployment
+```
+
+### Настройка Ingress
+
+В `/etc/host` добавьте строку:
+
+```txt
+your-minikube-ip star-burger.test
+```
+
+Чтобы узнать IP-адрес minikube:
+
+```bash
+minikube ip
+```
+
+Установите расширение для `minikube`:
+
+```bash
+minikube addons enable ingress
+```
+
+Запустите манифест:
+
+```bash
+kubectl apply -f kubernetes/ingress.yml
+```
+
+### Настройка удаления сессий
+
+Задать регулярность удаления пользовательских сессий можно в файле `django-clear-sessions-cronjob.yml`:
+
+```yaml
+schedule: "0 0 1 * *"
+```
+
+После этого запустите команду в работу:
+
+```bash
+kubectl apply -f kubernetes/django-app-clearsessions-cronjob.yml
+```
+
+### База данных и миграции
+
+Базу данных PosgreSQL лучше развернуть вне кластера, но при необходимости можно сделать это и в Kubernetes, воспользовавшись [Helm](https://helm.sh/):
+
+```bash
+brew install helm
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+helm install postgres-1 bitnami/postgresql
+```
+
+Для запуска миграции базы данных используйте:
+
+```bash
+kubectl apply -f kubernetes/django-app-migrate-job.yml
+```
+
 ## Переменные окружения
 
 Образ с Django считывает настройки из переменных окружения:
